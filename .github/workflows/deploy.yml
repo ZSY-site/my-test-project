@@ -18,20 +18,43 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
+            echo "🔍 服务器当前所在路径: $(pwd)"
+            # 替换成你服务器真实的项目绝对路径
+            TARGET_DIR="/sunday/admin"
+
+            if [ ! -d "${TARGET_DIR}" ]; then
+              echo "❌ 错误：目录 ${TARGET_DIR} 不存在，请核对路径！"
+              exit 1
+            fi
+
             echo "【步骤1】进入项目根目录"
-            cd /sunday/admin
+            cd "${TARGET_DIR}"
+            echo "进入后路径: $(pwd)"
+
+            if [ ! -d ".git" ]; then
+              echo "❌ 错误：当前目录不是Git仓库，找不到.git文件夹"
+              exit 1
+            fi
+
             echo "【步骤2】git拉取最新代码"
             git pull origin main
+
             echo "【步骤3】进入后端server文件夹"
             cd server
+
             echo "【步骤4】后端安装生产依赖"
             npm ci --production
+
             echo "【步骤5】PM2重启后端服务"
             pm2 restart backend-api
+
             echo "【步骤6】切回前端根目录"
             cd ..
+
             echo "【步骤7】前端安装依赖"
             npm ci
+
             echo "【步骤8】前端打包"
             npm run build
+
             echo "✅ 全部部署执行成功"
