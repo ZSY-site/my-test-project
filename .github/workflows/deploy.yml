@@ -49,9 +49,9 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "backend/*"
-          target: "/sunday/todo-backend"
-          strip_components: 0
+          source: "backend"
+          target: "/sunday"
+          strip_components: 1
 
       # 6. 远程部署配置
       - name: 线上部署&启动服务
