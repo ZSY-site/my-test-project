@@ -24,15 +24,20 @@ jobs:
         with:
           node-version: 20
 
-      # 3. 打包构建（改用npm install，不再强制lock文件）
+      # 3. 前端打包构建
       - name: 前端打包构建
         run: |
+          cd frontend
           npm install
           npm run build
-          cd server
+
+      # 4. 后端安装依赖
+      - name: 后端安装依赖
+        run: |
+          cd backend
           npm install
 
-      # 4. SCP全量传输代码到服务器临时目录
+      # 5. SCP全量传输代码到服务器临时目录
       - name: 传输代码至服务器
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -43,7 +48,7 @@ jobs:
           target: "/sunday/admin_new"
           strip_components: 0
 
-      # 5. 远程备份+替换+重启服务
+      # 6. 远程备份+替换+重启服务
       - name: 线上部署&重启服务
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -60,8 +65,6 @@ jobs:
             mv /sunday/admin_new /sunday/admin
 
             # 线上仅安装生产依赖
-            cd /sunday/admin/server
+            cd /sunday/admin/backend
             npm ci --production
             pm2 restart backend-api
-
-            echo "✅ 部署全部完成"
