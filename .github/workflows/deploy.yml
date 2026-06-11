@@ -1,52 +1,63 @@
-name: 标准完整自动部署流水线
+name: 小项目通用CI/CD部署
 on:
   push:
     branches: [ main ]
+  # 支持网页手动触发
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # 步骤1：官方Action，在CI云端检出代码（仅CI打包用，不上线）
-      - name: 检出代码到CI运行环境
+      # 1. CI虚拟机拉取代码（你之前疑惑的专用拉代码Action）
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      # 步骤2：SSH登录业务服务器执行部署
-      - name: SSH远程部署服务端
+      # 2. CI配置Node环境，执行打包
+      - name: 配置Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 前端打包构建
+        run: |
+          npm ci
+          npm run build
+          cd server
+          npm ci
+
+      # 3. SCP传输整个项目目录到服务器临时文件夹
+      - name: 传输代码至服务器
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "."
+          target: "/sunday/admin_new"
+          strip_components: 0
+
+      # 4. SSH远程执行替换、重启服务
+      - name: 线上部署&重启服务
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
-          port: 22
+          key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
           command_timeout: 30m
           script: |
             set -e
-            TARGET_DIR="/sunday/admin"
-            GIT_REMOTE="https://github.com/ZSY-site/my-test-project.git"
+            # 备份正在运行的旧版本（回滚只需要反向mv）
+            mv /sunday/admin /sunday/admin_bak_$(date +%Y%m%d_%H%M%S)
+            # 新版本转正
+            mv /sunday/admin_new /sunday/admin
 
-            # 自动容错：目录不存在就clone；存在无.git就初始化绑定远程
-            if [ ! -d "$TARGET_DIR" ]; then
-              mkdir -p $(dirname "$TARGET_DIR")
-              cd $(dirname "$TARGET_DIR")
-              git clone "$GIT_REMOTE" $(basename "$TARGET_DIR")
-            fi
-
-            cd "$TARGET_DIR"
-            if [ ! -d ".git" ]; then
-              git init
-              git remote add origin "$GIT_REMOTE"
-              git pull origin main --allow-unrelated-histories
-            fi
-
-            # 正常迭代更新
-            git pull origin main
-            cd server
+            # 后端生产依赖安装
+            cd /sunday/admin/server
             npm ci --production
+            # PM2重启后端服务
             pm2 restart backend-api
-            cd ..
-            npm ci
-            npm run build
-            echo "✅ 部署全部完成"
+
+            echo "✅ 新版本部署完成"
