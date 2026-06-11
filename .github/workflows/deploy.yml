@@ -1,25 +1,30 @@
-name: 小项目通用CI/CD部署
+name: 小项目标准CI/CD
 on:
   push:
     branches: [ main ]
-  # 支持网页手动触发
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1. CI虚拟机拉取代码（你之前疑惑的专用拉代码Action）
+      # 1. 检出完整代码
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # 2. CI配置Node环境，执行打包
+      # 调试打印目录，确认文件存在（跑通后可删掉）
+      - name: 查看目录结构
+        run: |
+          pwd
+          ls -la
+
+      # 2. 初始化Node环境
       - name: 配置Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # cache: 'npm'
 
+      # 3. 打包构建（改用npm install，不再强制lock文件）
       - name: 前端打包构建
         run: |
           npm install
@@ -27,7 +32,7 @@ jobs:
           cd server
           npm install
 
-      # 3. SCP传输整个项目目录到服务器临时文件夹
+      # 4. SCP全量传输代码到服务器临时目录
       - name: 传输代码至服务器
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -38,7 +43,7 @@ jobs:
           target: "/sunday/admin_new"
           strip_components: 0
 
-      # 4. SSH远程执行替换、重启服务
+      # 5. 远程备份+替换+重启服务
       - name: 线上部署&重启服务
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -49,15 +54,14 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
-            # 备份正在运行的旧版本（回滚只需要反向mv）
-            mv /sunday/admin /sunday/admin_bak_$(date +%Y%m%d_%H%M%S)
-            # 新版本转正
+            # 备份旧版本，带时间戳
+            mv /sunday/admin /sunday/admin_bak_$(date +%Y%m%d_%H%M%S) || true
+            # 新版本更名上线
             mv /sunday/admin_new /sunday/admin
 
-            # 后端生产依赖安装
+            # 线上仅安装生产依赖
             cd /sunday/admin/server
             npm ci --production
-            # PM2重启后端服务
             pm2 restart backend-api
 
-            echo "✅ 新版本部署完成"
+            echo "✅ 部署全部完成"
