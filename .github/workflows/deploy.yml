@@ -7,6 +7,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug SSH Key
+        run: echo "${{ secrets.SSH_KEY }}" | head -2
+        if: always()
       - name: SSH连接服务器部署
         uses: appleboy/ssh-action@v0.1.10
         with:
