@@ -20,20 +20,20 @@ jobs:
 
           script: |
             set -e
-            # 你的项目服务器目录
+            echo "【步骤1】进入项目根目录"
             cd /sunday/admin
-
-            # 拉最新代码
+            echo "【步骤2】git拉取最新代码"
             git pull origin main
-
-            # 后端更新+重启
+            echo "【步骤3】进入后端server文件夹"
             cd server
+            echo "【步骤4】后端安装生产依赖"
             npm ci --production
+            echo "【步骤5】PM2重启后端服务"
             pm2 restart backend-api
-
-            # 前端重新打包
+            echo "【步骤6】切回前端根目录"
             cd ..
+            echo "【步骤7】前端安装依赖"
             npm ci
+            echo "【步骤8】前端打包"
             npm run build
-
-            echo "✅ 部署执行完毕"
+            echo "✅ 全部部署执行成功"
