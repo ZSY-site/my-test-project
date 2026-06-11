@@ -1,21 +1,39 @@
-name: 全栈项目自动部署云服务器
+name: 极简自动部署
 on:
   push:
     branches: [ main ]
 
 jobs:
-  deploy_task:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取最新代码
-        uses: actions/checkout@v4
+      - name: SSH连接服务器部署
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          # 对应你在GitHub Secrets里新建的3个变量
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script_stop: true
+          command_timeout: 30m
 
-      - name: 写入私钥到临时文件并授权权限
-        env:
-          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SERVER_IP: ${{ secrets.SERVER_HOST }}
-        run: |
-          echo "$PRIVATE_KEY" > ~/server_id_rsa
-          chmod 600 ~/server_id_rsa
-          # 强制指定私钥文件登录
-          ssh -i ~/server_id_rsa -o StrictHostKeyChecking=no root@$SERVER_IP "echo '✅ SSH连通测试成功'"
+          script: |
+            set -e
+            # 你的项目服务器目录
+            cd /sunday/admin
+
+            # 拉最新代码
+            git pull origin main
+
+            # 后端更新+重启
+            cd server
+            npm ci --production
+            pm2 restart backend-api
+
+            # 前端重新打包
+            cd ..
+            npm ci
+            npm run build
+
+            echo "✅ 部署执行完毕"
