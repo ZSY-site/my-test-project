@@ -31,7 +31,7 @@ jobs:
           npm install
           npm run build
 
-      # 4. 传输前端构建产物到服务器 Nginx 目录
+      # 4. 传输前端构建产物到服务器
       - name: 传输前端代码至服务器
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -39,7 +39,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "frontend/build"
-          target: "/var/www/html/todo-app"
+          target: "/sunday/todo-frontend"
           strip_components: 0
 
       # 5. 传输后端代码到服务器
@@ -54,7 +54,7 @@ jobs:
           strip_components: 0
 
       # 6. 远程部署配置
-      - name: 线上部署&配置
+      - name: 线上部署&启动服务
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -73,40 +73,6 @@ jobs:
             cd /sunday/todo-backend
             npm ci --production
 
-            # 配置 Nginx 反向代理
-            cat > /etc/nginx/sites-available/todo-app << 'EOF'
-server {
-    listen 80;
-    server_name your-domain.com;  # 替换为你的域名或服务器IP
-
-    # 前端静态文件
-    location / {
-        root /var/www/html/todo-app;
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API 反向代理到后端
-    location /api/ {
-        proxy_pass http://localhost:5000/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-EOF
-
-            # 创建软链接启用配置
-            ln -sf /etc/nginx/sites-available/todo-app /etc/nginx/sites-enabled/
-            rm -f /etc/nginx/sites-enabled/default
-
-            # 检查 Nginx 配置并重启
-            nginx -t && systemctl restart nginx
-
             # 启动/重启后端服务
             set +e
             echo "=== 检查 PM2 进程 ==="
@@ -124,3 +90,5 @@ EOF
             set -e
 
             echo "✅ 部署完成！"
+            echo "后端服务运行在: http://服务器IP:5000"
+            echo "前端文件位置: /sunday/todo-frontend"
