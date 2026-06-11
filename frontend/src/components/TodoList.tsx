@@ -80,7 +80,7 @@ const TodoList = () => {
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Add a new todo..."
+          placeholder="111Add a new todo..."
           className="todo-input"
         />
         <button type="submit" className="todo-button">Add</button>
