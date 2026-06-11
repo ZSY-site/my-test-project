@@ -75,18 +75,33 @@ jobs:
 
             # 启动/重启后端服务
             set +e
+            echo "=== 检查当前目录 ==="
+            pwd
+            ls -la
+            
             echo "=== 检查 PM2 进程 ==="
             which pm2
             pm2 --version
-            pm2 describe todo-backend > /dev/null 2>&1
-            if [ $? -eq 0 ]; then
+            
+            echo "=== 检查 todo-backend 进程 ==="
+            pm2 describe todo-backend
+            describe_exit=$?
+            echo "pm2 describe 退出码: $describe_exit"
+            
+            if [ $describe_exit -eq 0 ]; then
               echo "进程存在，重启中..."
               pm2 restart todo-backend
+              echo "pm2 restart 退出码: $?"
             else
               echo "进程不存在，启动新进程..."
               pm2 start server.js --name todo-backend
+              echo "pm2 start 退出码: $?"
             fi
+            
+            echo "=== PM2 进程列表 ==="
             pm2 list
+            echo "pm2 list 退出码: $?"
+            
             set -e
 
             echo "✅ 部署完成！"
