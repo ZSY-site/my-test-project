@@ -59,6 +59,11 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
+            # 加载 nvm 环境（根据服务器实际配置调整路径）
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
             # 备份旧版本，带时间戳
             mv /sunday/admin /sunday/admin_bak_$(date +%Y%m%d_%H%M%S) || true
             # 新版本更名上线
