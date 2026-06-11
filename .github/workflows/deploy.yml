@@ -1,5 +1,4 @@
 name: 全栈项目自动部署云服务器
-# 触发规则：push到main分支自动执行部署
 on:
   push:
     branches: [ main ]
@@ -8,31 +7,35 @@ jobs:
   deploy_task:
     runs-on: ubuntu-latest
     steps:
-      # 1、拉取GitHub仓库完整代码到虚拟机
+      # 拉取代码
       - name: 拉取最新代码
         uses: actions/checkout@v4
 
-      # 2、SSH连接云服务器执行部署脚本
+      # SSH连接服务器（修复多行私钥丢失换行问题）
       - name: SSH远程部署前后端
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # 关键：竖线 | 完整保留私钥原有换行
+          key: |
+            ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          # 服务器批量执行命令
           script: |
             set -e
-            echo "===== 开始部署后端 ====="
-            cd /sunday/admin/server
-            git pull origin main
-            npm ci --production
-            pm2 restart backend-api
-            echo "✅ 后端部署&重启完成"
+            echo "✅ SSH连通测试成功！"
 
-            echo "===== 开始打包前端 ====="
-            cd /sunday/admin
-            git pull origin main
-            npm ci
-            npm run build
-            echo "✅ 前端打包完成，Nginx自动生效"
+            # ============ 连通正常后，再取消下面注释正式部署 ============
+            # echo "===== 开始部署后端 ====="
+            # cd /sunday/admin/server
+            # git pull origin main
+            # npm ci --production
+            # pm2 restart backend-api
+            # echo "✅ 后端部署&重启完成"
+
+            # echo "===== 开始打包前端 ====="
+            # cd /sunday/admin
+            # git pull origin main
+            # npm ci
+            # npm run build
+            # echo "✅ 前端打包完成，Nginx自动生效"
