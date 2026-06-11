@@ -22,10 +22,10 @@ jobs:
 
       - name: 前端打包构建
         run: |
-          npm ci
+          npm install
           npm run build
           cd server
-          npm ci
+          npm install
 
       # 3. SCP传输整个项目目录到服务器临时文件夹
       - name: 传输代码至服务器
