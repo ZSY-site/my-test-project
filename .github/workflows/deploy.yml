@@ -71,7 +71,7 @@ jobs:
 
             # 安装后端生产依赖
             cd /sunday/todo-backend
-            npm ci --production
+            npm install --production
 
             # 启动/重启后端服务
             set +e
