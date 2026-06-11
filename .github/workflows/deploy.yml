@@ -74,8 +74,12 @@ jobs:
             npm ci --production
             
             # 检查 PM2 进程是否存在，存在则重启，不存在则启动
-            if pm2 describe backend-api > /dev/null 2>&1; then
+            # 使用 set +e 临时禁用错误退出，避免 pm2 describe 返回非零导致脚本失败
+            set +e
+            pm2 describe backend-api > /dev/null 2>&1
+            if [ $? -eq 0 ]; then
               pm2 restart backend-api
             else
               pm2 start server.js --name backend-api
             fi
+            set -e
