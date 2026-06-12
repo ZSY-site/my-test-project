@@ -80,22 +80,42 @@ jobs:
           script: |
             set -e
 
-            # 加载nvm环境
+            echo "=== 步骤1: 加载nvm环境 ==="
             export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            echo "NVM_DIR: $NVM_DIR"
+            if [ -s "$NVM_DIR/nvm.sh" ]; then
+              echo "找到nvm.sh，加载中..."
+              . "$NVM_DIR/nvm.sh"
+              echo "Node版本: $(node --version)"
+              echo "npm版本: $(npm --version)"
+            else
+              echo "未找到nvm.sh"
+            fi
 
-            # 安装后端依赖
+            echo "=== 步骤2: 检查后端目录 ==="
+            ls -la /sunday/todo-backend/
+
+            echo "=== 步骤3: 安装后端依赖 ==="
             cd /sunday/todo-backend
             npm install --production
 
-            # 启动或重启PM2服务
+            echo "=== 步骤4: 启动或重启PM2服务 ==="
+            which pm2
+            pm2 --version
+            
             set +e
             pm2 describe todo-backend > /dev/null 2>&1
             if [ $? -eq 0 ]; then
+              echo "进程存在，重启中..."
               pm2 restart todo-backend
             else
+              echo "进程不存在，启动新进程..."
               pm2 start server.js --name todo-backend
             fi
+            
+            echo "=== PM2进程列表 ==="
+            pm2 list
+            
             set -e
 
             echo "✅ 部署完成！"
