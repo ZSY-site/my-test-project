@@ -8,17 +8,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1. 检出完整代码
+      # 1. 检出代码
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # 调试打印目录，确认文件存在（跑通后可删掉）
-      - name: 查看目录结构
-        run: |
-          pwd
-          ls -la
-
-      # 2. 初始化Node环境
+      # 2. 配置Node.js
       - name: 配置Node.js
         uses: actions/setup-node@v4
         with:
@@ -31,42 +25,8 @@ jobs:
           npm install
           npm run build
 
-      # 4. 传输前端构建产物到服务器
-      - name: 传输前端代码至服务器
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "frontend/build"
-          target: "/sunday/todo-frontend"
-          strip_components: 0
-
-      # 5. 传输后端代码到服务器（先创建目录）
-      - name: 创建后端目录
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            mkdir -p /sunday/todo-backend
-
-      # 6. 传输后端代码到服务器
-      - name: 传输后端代码至服务器
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source:
-            - "backend/package.json"
-            - "backend/package-lock.json"
-            - "backend/server.js"
-          target: "/sunday/todo-backend"
-
-      # 6. 远程部署配置
-      - name: 线上部署&启动服务
+      # 4. 部署到服务器
+      - name: 部署到服务器
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -77,45 +37,65 @@ jobs:
           script: |
             set -e
 
-            # 加载 nvm 环境
+            # 加载nvm环境
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-            # 安装后端生产依赖
+            # 创建目录结构
+            mkdir -p /sunday/todo-frontend
+            mkdir -p /sunday/todo-backend
+
+            set +e
+
+      # 5. 传输前端构建产物
+      - name: 传输前端代码
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "frontend/build"
+          target: "/sunday/todo-frontend"
+
+      # 6. 传输后端代码
+      - name: 传输后端代码
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "backend"
+          target: "/sunday/todo-backend"
+          strip_components: 1
+
+      # 7. 安装依赖并启动服务
+      - name: 安装依赖并启动服务
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -e
+
+            # 加载nvm环境
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+            # 安装后端依赖
             cd /sunday/todo-backend
             npm install --production
 
-            # 启动/重启后端服务
+            # 启动或重启PM2服务
             set +e
-            echo "=== 检查当前目录 ==="
-            pwd
-            ls -la
-            
-            echo "=== 检查 PM2 进程 ==="
-            which pm2
-            pm2 --version
-            
-            echo "=== 检查 todo-backend 进程 ==="
-            pm2 describe todo-backend
-            describe_exit=$?
-            echo "pm2 describe 退出码: $describe_exit"
-            
-            if [ $describe_exit -eq 0 ]; then
-              echo "进程存在，重启中..."
+            pm2 describe todo-backend > /dev/null 2>&1
+            if [ $? -eq 0 ]; then
               pm2 restart todo-backend
-              echo "pm2 restart 退出码: $?"
             else
-              echo "进程不存在，启动新进程..."
               pm2 start server.js --name todo-backend
-              echo "pm2 start 退出码: $?"
             fi
-            
-            echo "=== PM2 进程列表 ==="
-            pm2 list
-            echo "pm2 list 退出码: $?"
-            
             set -e
 
             echo "✅ 部署完成！"
-            echo "后端服务运行在: http://服务器IP:5000"
-            echo "前端文件位置: /sunday/todo-frontend"
