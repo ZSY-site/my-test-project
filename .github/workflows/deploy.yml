@@ -57,25 +57,16 @@ jobs:
           source: "frontend/build"
           target: "/sunday/todo-frontend"
 
-      # 6. 传输后端代码（先清空目录）
-      - name: 清空后端目录
+      # 6. 使用rsync传输后端代码（避免scp嵌套目录问题）
+      - name: 传输后端代码
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            rm -rf /sunday/todo-backend/*
-
-      # 7. 传输后端代码
-      - name: 传输后端代码
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "backend/package.json,backend/package-lock.json,backend/server.js"
-          target: "/sunday/todo-backend"
+            rsync -az --delete /github/workspace/backend/ /sunday/todo-backend/
+            ls -la /sunday/todo-backend/
 
       # 8. 安装后端依赖
       - name: 安装后端依赖
@@ -111,7 +102,9 @@ jobs:
             pwd
             ls -la
             
-            pm2 describe todo-backend
+            # 临时禁用错误退出，避免 pm2 describe 返回非零导致脚本失败
+            set +e
+            pm2 describe todo-backend > /dev/null 2>&1
             if [ $? -eq 0 ]; then
               echo "进程已存在，重启..."
               pm2 restart todo-backend
@@ -119,6 +112,7 @@ jobs:
               echo "进程不存在，启动新进程..."
               pm2 start server.js --name todo-backend
             fi
+            set -e
             
             pm2 list
             echo "✅ 部署完成！"
