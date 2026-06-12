@@ -57,16 +57,28 @@ jobs:
           source: "frontend/build"
           target: "/sunday/todo-frontend"
 
-      # 6. 传输后端代码
+      # 6. 传输后端代码（先清空目录）
+      - name: 清空后端目录
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            rm -rf /sunday/todo-backend/*
+
+      # 7. 传输后端代码
       - name: 传输后端代码
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "backend"
+          source:
+            - "backend/package.json"
+            - "backend/package-lock.json"
+            - "backend/server.js"
           target: "/sunday/todo-backend"
-          strip_components: 1
 
       # 7. 安装依赖并启动服务
       - name: 安装依赖并启动服务
