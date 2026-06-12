@@ -97,11 +97,18 @@ jobs:
 
             echo "=== 步骤3: 安装后端依赖 ==="
             cd /sunday/todo-backend
+            echo "当前目录: $(pwd)"
             npm install --production
+            echo "npm install 退出码: $?"
 
-            echo "=== 步骤4: 启动或重启PM2服务 ==="
+            echo "=== 步骤4: 检查PM2 ==="
             which pm2
-            pm2 --version
+            echo "which pm2 退出码: $?"
+            if command -v pm2 &> /dev/null; then
+              pm2 --version
+            else
+              echo "PM2 未安装"
+            fi
             
             set +e
             pm2 describe todo-backend > /dev/null 2>&1
